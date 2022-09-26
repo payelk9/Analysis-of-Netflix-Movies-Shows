@@ -10,8 +10,7 @@ Understanding target audience in different countries.
 #### Data Cleaning: Excel Power Query 
 #### Data Analyzing: SQL
 #### Data Visualization: Excel Pivot Charts
-
-
+### <b>Analysis Viz Link:</b> https://github.com/payelk9/Analysis-of-Netflix-Movies-Shows/blob/main/NetflixRating.pptx
 	
 
 
