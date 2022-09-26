@@ -1,0 +1,254 @@
+/***FinalProject: Netflix Movies and TV Shows Rating ***/
+/* Creating database */
+Create database netflixrating_db;
+Use  netflixrating_db;
+
+/*Creating table */
+Create Table titles
+(id varchar(10),
+title varchar(150),
+typ varchar(10),
+descrp varchar(2000),
+release_year int,
+age_certification varchar(10),
+runtime int,
+genres varchar(20),
+production_countries varchar(10),
+seasons int,
+imdb_id varchar(15),
+imdb_score float,
+imdb_votes int,
+tmdb_popularity float,
+tmdb_score float);
+
+Create Table credits
+(person_id varchar(10),
+id varchar(10),
+person_name varchar(100),
+person_character varchar(300),
+person_role varchar(15));
+
+
+/* Load data using cmd */
+#Select count(*) from titles;
+#Select count(*) from credits;
+Select * from titles;
+Select * from credits;
+
+
+/*********Let's start with analysis*********/
+
+/*1. Total number of movies and tvshows */
+Select ifnull(typ,"Total") as Type, count(distinct(id)) as Count from titles
+group by typ;
+
+/*2.1. Time Period range the dataset*/
+select min(release_year) as First_year,  max(release_year) as Latest_year from titles;
+
+Select title, typ, release_year from titles where release_year="1945";
+
+/*2.2. Count of movies and shows yearwise */
+select distinct(release_year), typ,count(distinct(id)) from titles
+group by 1,2 
+order by 1,2 asc;
+
+/*3.1. Age Certification wise movies */
+select age_certification, typ,count(distinct(id))from titles
+where age_certification<>"N/A" and  typ="MOVIE"
+group by 1 
+order by 3 desc;
+
+/*3.2. Rating wise shows */
+select age_certification, typ,count(distinct(id))from titles
+where age_certification<>"N/A" and  typ="Show"
+group by 1 
+order by 3 desc;
+
+/*4.Runtime Analysis*/
+/*4.1. Movie runtime analysis*/
+Select distinct(runtime) ,typ, count(distinct(id)) from titles
+where typ = "MOVIE"
+group by 1 
+order by 1 asc ;
+
+/*4.2. Show runtime analysis - 0 is for null values which we are ignoring*/
+Select distinct(runtime) ,typ, count(distinct(id)) from titles
+where typ = "SHOW" and runtime<>"0"
+group by 1 
+order by 1 asc ;
+
+/*5.1. Show number of seasons analysis- 0 is for null values for movies which we are ignoring */
+Select distinct(seasons) ,typ, count(distinct(id)) from titles
+where typ = "SHOW" 
+group by 1 
+order by 1 asc ;
+
+/*5.2. Top 10 Shows with max number of seasons using WINDOW FUNCTION*/
+Select distinct(title), seasons,
+dense_rank() over (order by seasons desc) as drnk from titles;
+
+/*6. Count of movies and shows in different genres - N/A values are ignored as it represents null values*/
+Select distinct(trim(genres)) ,typ, count(distinct(id)) from titles
+where genres<>"N/A" 
+group by 1, 2
+order by 2,3 desc ;
+
+/*7. Top rated genres for movies*/
+Create view HighratingM_genre as
+Select distinct(trim(genres)) as topg , typ, count(distinct(id)) as highrating from titles 
+where typ = "MOVIE" and genres<>"N/A" and imdb_score>7.5
+group by 1 
+order by 3 desc ;
+
+Select * from HighratingM_genre;
+#drop view HighratingM_genre;
+
+Select topg,highrating, TotalCount ,round((highrating/TotalCount)*100,2) as percentage_highrated from 
+(select topg, highrating,TotalCount from HighratingM_genre as t1
+inner join 
+(Select distinct(trim(genres)) as g , typ, count(distinct(id)) as Totalcount from titles 
+where typ = "MOVIE" and genres<>"N/A"
+group by 1 
+order by 3 desc) as t2
+on t1.topg = t2.g) as t3 order by 4 desc;
+
+
+/*8. Top rated genres for shows*/
+Create view HighratingS_genre as
+Select distinct(trim(genres)) as topg , typ, count(distinct(id)) as highrating from titles 
+where typ = "SHOW" and genres<>"N/A" and imdb_score>7.5
+group by 1 
+order by 3 desc ;
+
+Select * from HighratingS_genre;
+#drop view HighratingM_genre;
+
+Select topg,highrating, TotalCount ,round((highrating/TotalCount)*100,2) as percentage_highrated from 
+(select topg, highrating,TotalCount from HighratingS_genre as t1
+inner join 
+(Select distinct(trim(genres)) as g , typ, count(distinct(id)) as Totalcount from titles 
+where typ = "SHOW" and genres<>"N/A"
+group by 1 
+order by 3 desc) as t2
+on t1.topg = t2.g) as t3 order by 4 desc;
+
+/*9.1. Count of movies from different countries - N/A values are ignored as it represents null values*/
+Select distinct(trim(production_countries)) ,typ, count(distinct(id)) from titles
+where typ = "MOVIE" and production_countries<>"N/A"
+group by 1 
+order by 3 desc ;
+
+/*9.2 Most top rated movies producing countries*/
+#creating view for count of highrated contents in top 10 movie producing countries
+Create view HighratingM as
+Select distinct(trim(production_countries)) as topc , typ, count(distinct(id)) as highrating from titles 
+where typ = "MOVIE" and production_countries<>"N/A" and imdb_score>7.5
+group by 1 
+order by 3 desc limit 20;
+
+select * from HighratingM;
+#drop view Highrating;
+
+#Top 10 movie producing country's high rated movie percentage using view and join
+Select topc,highrating, TotalCount ,round((highrating/TotalCount)*100,2) as percentage_highrated from 
+(select topc, highrating,TotalCount from HighratingM  as t1
+inner join 
+(Select distinct(trim(production_countries)) as c , typ, count(distinct(id)) as TotalCount from titles 
+where typ = "MOVIE" and production_countries<>"N/A" 
+group by 1 
+order by 3 desc limit 10) as t2
+on t1.topc = t2.c) as t3 order by 4 desc ;
+
+/*10.1. Count of shows from different countries - N/A values are ignored as it represents null values*/
+Select distinct(trim(production_countries)) ,typ, count(distinct(id)) from titles
+where typ = "SHOW" and production_countries<>"N/A"
+group by 1 
+order by 3 desc ;
+
+/*10.2. Countries to produce most top rated shows*/
+#creating view for count of highrated contents in top 10 show producing countries
+Create view HighratingS as
+Select distinct(trim(production_countries)) as topc , typ, count(distinct(id)) as highrating from titles 
+where typ = "SHOW" and production_countries<>"N/A" and imdb_score>7.5
+group by 1 
+order by 3 desc limit 20;
+
+select * from HighratingS;
+
+#Top 10 show producing country's high rated show percentage using view and join
+Select topc,highrating, TotalCount ,round((highrating/TotalCount)*100,2) as percentage_highrated from 
+(select topc, highrating,TotalCount from HighratingS as t1
+inner join 
+(Select distinct(trim(production_countries)) as c , typ, count(distinct(id)) as TotalCount from titles 
+where typ = "SHOW" and production_countries<>"N/A" 
+group by 1 
+order by 3 desc limit 10) as t2
+on t1.topc = t2.c) as t3 order by 4 desc;
+
+/*11. Target audience for movies in Top 10 movie producing countries */ 
+/*Top 10 countries */
+Select * from (Select distinct(trim(production_countries)) as top10 from titles
+where typ = "MOVIE" and production_countries<>"N/A"
+group by 1 
+order by count(distinct(id)) desc limit 10) as temptable;
+
+#using inner join
+select  trim(production_countries), age_certification, typ, count(distinct(id))from titles as t1
+Inner join 
+(Select distinct(trim(production_countries)) as top10 from titles
+where typ = "MOVIE" and production_countries<>"N/A"
+group by 1 
+order by count(distinct(id)) desc limit 10) as t2
+on t1.production_countries=t2.top10
+where age_certification<>"N/A" and  typ="MOVIE" and production_countries<>"N/A"
+group by 1,2 
+order by 1 desc,4 desc ;
+
+/*12. Target audience for shows in Top 10 show producing countries */ 
+/*Top 10 countries */
+Select * from (Select distinct(trim(production_countries)) as top10 from titles
+where typ = "SHOW" and production_countries<>"N/A"
+group by 1 
+order by count(distinct(id)) desc limit 10) as temptable;
+
+#using sub query
+select  trim(production_countries) as Countries, age_certification, typ, count(distinct(id))from titles
+where age_certification<>"N/A" and  typ="Show" and production_countries in 
+(Select * from (Select distinct(trim(production_countries)) as top10 from titles
+where typ = "SHOW" and production_countries<>"N/A"
+group by 1 
+order by count(distinct(id)) desc limit 10) as temptable) 
+group by 1,2 
+order by 1 desc,4 desc ;
+
+/*13.1. Top 10 Directors with maximum movies*/
+select distinct(person_name),count(person_name)as Moviescount
+from credits
+where person_role="DIRECTOR" and id in (select id from titles where typ="MOVIE")
+group by 1
+order by 2 desc limit 10;
+
+/*13.2. Top 10 Directors with maximum shows*/
+select distinct(person_name),count(person_name) as Showscount
+from credits
+where person_role="DIRECTOR" and id in (select id from titles where typ="SHOW")
+group by 1
+order by 2 desc limit 10;
+
+
+/*14.1 Top 10 Actors with maximum movies*/
+select distinct(person_name),count(person_name)as Moviescount
+from credits
+where person_role="ACTOR" and id in (select id from titles where typ="MOVIE")
+group by 1
+order by 2 desc limit 10;
+
+/*14.2 Top 10 Actors with maximum shows*/
+select distinct(person_name),count(person_name) as Showscount
+from credits
+where person_role="ACTOR" and id in (select id from titles where typ="SHOW")
+group by 1
+order by 2 desc limit 10;
+
+
+/*------------------------------------------------------------------END-----------------------------------------------------------------------------------------*/-
